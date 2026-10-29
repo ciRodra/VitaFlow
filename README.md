@@ -1,4 +1,4 @@
-# projetoOds3
+# VitaFlow
 ### Sobre o projeto
 
 Este projeto está sendo desenvolvido como parte do **FMU Tech Inovação**, alinhado ao **Objetivo de Desenvolvimento Sustentável (ODS) 3 — Saúde e Bem-Estar**, com o propósito de contribuir para a continuidade dos tratamentos médicos e incentivar a adoção de hábitos saudáveis.
