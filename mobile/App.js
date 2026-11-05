@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
 import LoginScreen from './src/screens/LoginScreen';
+import TodayScreen from './src/screens/TodayScreen';
+
 
 const TABS = ['Hoje', 'Histórico', 'Progresso'];
 
@@ -18,9 +20,13 @@ export default function App() {
     <View style={styles.app}>
       <StatusBar style="dark" />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{activeTab}</Text>
-      </View>
+      {activeTab === 'Hoje' ? (
+        <TodayScreen />
+      ) : (
+        <View style={styles.content}>
+          <Text style={styles.title}>{activeTab}</Text>
+        </View>
+      )}
 
       <View style={styles.tabBar}>
         {TABS.map((tab) => {
