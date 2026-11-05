@@ -2,11 +2,17 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
+import LoginScreen from './src/screens/LoginScreen';
 
 const TABS = ['Hoje', 'Histórico', 'Progresso'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Hoje');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <View style={styles.app}>
