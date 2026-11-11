@@ -16,3 +16,17 @@ export const mockProgress = {
     { date: '2026-11-04', label: 'Qua', done: 1, notDone: 0, noResponse: 1, pending: 2 },
   ],
 };
+
+
+export const mockProgressDay = {
+  totalTasks: 4,
+  done: 1,
+  notDone: 0,
+  noResponse: 1,
+  pending: 2,
+  registrationRate: 1 / 2,
+  completionRate: 1 / 1,
+  dailyBreakdown: [
+    { date: '2026-11-04', label: 'Hoje', done: 1, notDone: 0, noResponse: 1, pending: 2 },
+  ],
+};

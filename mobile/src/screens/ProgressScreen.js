@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { mockProgress } from '../mocks/progress';
+import { mockProgress, mockProgressDay } from '../mocks/progress';
 import { colors, statusStyles } from '../theme/colors';
 
 const CHART_ITEMS = [
@@ -8,6 +9,19 @@ const CHART_ITEMS = [
   { key: 'noResponse', color: '#C9D2CE', label: '— Sem registro' },
   { key: 'pending', color: colors.lilacLight, label: '◷ Pendente' },
 ];
+
+const PERIODS = {
+  Dia: {
+    data: mockProgressDay,
+    subtitle: 'Hoje',
+    chartTitle: 'Registros de hoje',
+  },
+  Semana: {
+    data: mockProgress,
+    subtitle: 'Últimos 7 dias',
+    chartTitle: 'Registros por dia (4 tarefas/dia)',
+  },
+};
 
 function percent(rate) {
   return Math.round(rate * 100);
@@ -49,7 +63,8 @@ function DayBar({ day }) {
 }
 
 export default function ProgressScreen({ onOpenHistory }) {
-  const progress = mockProgress;
+  const [period, setPeriod] = useState('Semana');
+  const { data: progress, subtitle, chartTitle } = PERIODS[period];
   const recorded = progress.done + progress.notDone;
   const dueTasks = recorded + progress.noResponse;
   const kpis = [
@@ -71,8 +86,27 @@ export default function ProgressScreen({ onOpenHistory }) {
         </Pressable>
       </View>
 
+      <View style={styles.periods}>
+        {Object.keys(PERIODS).map((name) => {
+          const isActive = name === period;
+          return (
+            <Pressable
+              key={name}
+              onPress={() => setPeriod(name)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              style={[styles.periodButton, isActive && styles.periodActive]}
+            >
+              <Text style={[styles.periodText, isActive && styles.periodTextActive]}>
+                {name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Text style={styles.small}>
-        Últimos 7 dias · {progress.totalTasks} tarefas previstas (4/dia)
+        {subtitle} · {progress.totalTasks} tarefas previstas
       </Text>
 
       <View style={styles.kpis}>
@@ -107,7 +141,7 @@ export default function ProgressScreen({ onOpenHistory }) {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.chartTitle}>Registros por dia (4 tarefas/dia)</Text>
+        <Text style={styles.chartTitle}>{chartTitle}</Text>
         <View style={styles.chart}>
           {progress.dailyBreakdown.map((day) => (
             <DayBar key={day.date} day={day} />
@@ -151,6 +185,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   historyText: { fontSize: 12.5, fontWeight: '600', color: colors.text },
+  periods: { flexDirection: 'row', gap: 8 },
+  periodButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderRadius: 999,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  periodActive: { borderColor: colors.text, backgroundColor: colors.text },
+  periodText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  periodTextActive: { color: colors.surface },
   small: { fontSize: 12, color: colors.muted },
   kpis: { flexDirection: 'row', gap: 8 },
   kpi: { flex: 1, padding: 12, borderRadius: 16 },
@@ -176,7 +223,7 @@ const styles = StyleSheet.create({
   },
   fill: { height: 10, borderRadius: 5 },
   chartTitle: { fontSize: 13.5, fontWeight: '600', color: colors.text },
-  chart: { flexDirection: 'row', justifyContent: 'space-between' },
+  chart: { flexDirection: 'row', justifyContent: 'space-around' },
   day: { alignItems: 'center', gap: 5 },
   segments: { width: 24, flexDirection: 'column-reverse', gap: 2 },
   segment: { height: 16, borderRadius: 4 },
