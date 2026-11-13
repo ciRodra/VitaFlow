@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { mockTasks } from '../mocks/tasks';
 import { colors, statusStyles } from '../theme/colors';
+import FeatureShortcuts from '../components/FeatureShortcuts';
 
 const REASONS = {
   FORGOT: 'Esqueci',
@@ -134,6 +135,8 @@ export default function TodayScreen() {
           ))}
         </View>
       </View>
+
+      <FeatureShortcuts />
 
       {tasks.map((task) => (
         <TaskCard

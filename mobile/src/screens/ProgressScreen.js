@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { mockProgress, mockProgressDay } from '../mocks/progress';
 import { colors, statusStyles } from '../theme/colors';
+import VitaIcon from '../components/VitaIcon';
+import ComingSoonModal from '../components/ComingSoonModal';
 
 const CHART_ITEMS = [
   { key: 'done', color: '#1E7A3B', label: '✓ Feito' },
@@ -22,6 +24,9 @@ const PERIODS = {
     chartTitle: 'Registros por dia (4 tarefas/dia)',
   },
 };
+
+// "Mês" aparece como opção, mas ainda abre o aviso "Em breve".
+const PERIOD_BUTTONS = ['Dia', 'Semana', 'Mês'];
 
 function percent(rate) {
   return Math.round(rate * 100);
@@ -64,6 +69,7 @@ function DayBar({ day }) {
 
 export default function ProgressScreen({ onOpenHistory }) {
   const [period, setPeriod] = useState('Semana');
+  const [feature, setFeature] = useState(null);
   const { data: progress, subtitle, chartTitle } = PERIODS[period];
   const recorded = progress.done + progress.notDone;
   const dueTasks = recorded + progress.noResponse;
@@ -87,12 +93,12 @@ export default function ProgressScreen({ onOpenHistory }) {
       </View>
 
       <View style={styles.periods}>
-        {Object.keys(PERIODS).map((name) => {
+        {PERIOD_BUTTONS.map((name) => {
           const isActive = name === period;
           return (
             <Pressable
               key={name}
-              onPress={() => setPeriod(name)}
+              onPress={() => (PERIODS[name] ? setPeriod(name) : setFeature('mes'))}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               style={[styles.periodButton, isActive && styles.periodActive]}
@@ -157,10 +163,25 @@ export default function ProgressScreen({ onOpenHistory }) {
         </View>
       </View>
 
+      <Pressable
+        onPress={() => setFeature('relatorio')}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.card, styles.reportCard, pressed && styles.pressed]}
+      >
+        <VitaIcon name="relatorio" size={40} />
+        <View style={styles.reportBody}>
+          <Text style={styles.chartTitle}>Relatório de medicações</Text>
+          <Text style={styles.small}>Todas as datas e horários dos seus medicamentos</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
+
       <Text style={styles.notice}>
         Baseado apenas nos seus registros.{'\n'}
         Não representa avaliação clínica nem adesão comprovada.
       </Text>
+
+      <ComingSoonModal feature={feature} onClose={() => setFeature(null)} />
     </ScrollView>
   );
 }
@@ -232,5 +253,9 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendColor: { width: 10, height: 10, borderRadius: 3 },
   legendText: { fontSize: 11, color: colors.text },
+  reportCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reportBody: { flex: 1, gap: 2 },
+  chevron: { fontSize: 22, color: colors.muted },
+  pressed: { opacity: 0.7 },
   notice: { fontSize: 11.5, lineHeight: 17, textAlign: 'center', color: colors.muted },
 });
