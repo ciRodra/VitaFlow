@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Tabela de usuários
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  treatmentPlans TreatmentPlan[]
+}
+
+// Planos de tratamento
+model TreatmentPlan {
+  id         String  @id @default(uuid())
+  title      String
+  doctorName String
+  notes      String?
+  active     Boolean @default(true)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  careItems CareItem[]
+}
+
+// Itens de cuidado
+model CareItem {
+  id              String  @id @default(uuid())
+  title           String
+  type            String
+  dosageOrRule    String
+  scheduleTimes   String
+  origin          String
+  prescribedBy    String?
+  educationalNote String?
+  active          Boolean @default(true)
+
+  treatmentPlanId String
+  treatmentPlan   TreatmentPlan @relation(
+    fields: [treatmentPlanId],
+    references: [id]
+  )
+
+  scheduledTasks ScheduledTask[]
+}
+
+// Tarefas agendadas
+model ScheduledTask {
+  id            String @id @default(uuid())
+  scheduledDate String
+  scheduledTime String
+
+  careItemId String
+  careItem   CareItem @relation(
+    fields: [careItemId],
+    references: [id]
+  )
+
+  record TaskRecord?
+
+  @@unique([careItemId, scheduledDate, scheduledTime])
+}
+
+// Registro da execução da tarefa
+model TaskRecord {
+  id         String   @id @default(uuid())
+  status     String
+  reason     String?
+  note       String?
+  recordedAt DateTime @default(now())
+
+  scheduledTaskId String        @unique
+  scheduledTask   ScheduledTask @relation(
+    fields: [scheduledTaskId],
+    references: [id]
+  )
+}
