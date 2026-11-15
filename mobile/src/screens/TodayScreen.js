@@ -25,6 +25,7 @@ function TaskCard({ task, onDone, onNotDone, onUndo }) {
   const style = statusStyles[task.status];
   const canRegister = task.status === 'PENDING' || task.status === 'NO_RESPONSE';
   const isHabit = task.type === 'HABIT';
+  const showSeal = isHabit && task.origin === 'PROFESSIONAL' && !!task.prescribedBy;
 
   return (
     <View style={[styles.card, isHabit && styles.habitCard]}>
@@ -33,26 +34,37 @@ function TaskCard({ task, onDone, onNotDone, onUndo }) {
         {task.scheduledTime} · {task.dosageOrRule}
       </Text>
 
-      <View style={[styles.statusPill, { backgroundColor: style.bg }]}>
+      <View
+        style={[styles.statusPill, { backgroundColor: style.bg }]}
+        accessible
+        accessibilityLabel={`Situação: ${style.label.slice(2)}`}
+      >
         <Text style={[styles.statusText, { color: style.fg }]}>{style.label}</Text>
       </View>
 
       {task.reason && (
         <Text style={styles.taskInfo}>Motivo: {REASON_LABELS[task.reason]}</Text>
       )}
+      {task.note && <Text style={styles.taskInfo}>Comentário: {task.note}</Text>}
 
-      {isHabit && (
-        <>
-          <View style={styles.doctorSeal}>
-            <Text style={styles.doctorText}>
-              ✚ Recomendado pelo médico: Dra. Helena Costa
-            </Text>
-          </View>
-          <View style={styles.learnMore}>
-            <Text style={styles.learnTitle}>Saiba mais (educativo)</Text>
-            <Text style={styles.learnText}>{task.educationalNote}</Text>
-          </View>
-        </>
+      {/* A origem vem dos dados da tarefa; nada é atribuído a um profissional sem registro. */}
+      {showSeal ? (
+        <View style={styles.doctorSeal}>
+          <Text style={styles.doctorText}>✚ Recomendado por {task.prescribedBy}</Text>
+        </View>
+      ) : (
+        !!task.prescribedBy && (
+          <Text style={styles.taskInfo}>
+            {task.origin === 'PRESCRIPTION' ? 'Prescrição' : 'Orientação'}: {task.prescribedBy}
+          </Text>
+        )
+      )}
+
+      {!!task.educationalNote && (
+        <View style={styles.learnMore}>
+          <Text style={styles.learnTitle}>Saiba mais (educativo)</Text>
+          <Text style={styles.learnText}>{task.educationalNote}</Text>
+        </View>
       )}
 
       {canRegister && (
@@ -60,6 +72,7 @@ function TaskCard({ task, onDone, onNotDone, onUndo }) {
           <Pressable
             onPress={() => onDone(task.id)}
             accessibilityRole="button"
+            accessibilityLabel={`Realizei: ${task.title}`}
             style={[styles.button, styles.primaryButton]}
           >
             <Text style={styles.primaryText}>✓ Realizei</Text>
@@ -67,6 +80,7 @@ function TaskCard({ task, onDone, onNotDone, onUndo }) {
           <Pressable
             onPress={() => onNotDone(task.id)}
             accessibilityRole="button"
+            accessibilityLabel={`Não realizei: ${task.title}`}
             style={[styles.button, styles.outlineButton]}
           >
             <Text style={styles.outlineText}>✕ Não realizei</Text>
@@ -95,7 +109,10 @@ export default function TodayScreen() {
   const [reasonTask, setReasonTask] = useState(null);
 
   const summary = getSummary(tasks);
-  const nextTask = tasks.find((task) => task.status === 'PENDING');
+  // Próxima = a pendente de horário mais cedo (não a primeira da lista).
+  const nextTask = tasks
+    .filter((task) => task.status === 'PENDING')
+    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime))[0];
 
   useEffect(() => {
     getTasks()
@@ -115,14 +132,14 @@ export default function TodayScreen() {
     setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
   }
 
-  async function register(id, status, reason = null) {
+  async function register(id, status, reason = null, note = null) {
     if (offline) {
       const task = tasks.find((t) => t.id === id);
-      replaceTask({ ...task, status, reason });
+      replaceTask({ ...task, status, reason, note });
       return;
     }
     try {
-      replaceTask(await saveRecord(id, status, reason));
+      replaceTask(await saveRecord(id, status, reason, note));
       setMessage(status === 'DONE' ? 'Registro salvo: feito.' : 'Registro salvo: não feito.');
     } catch (err) {
       setMessage(`Não foi possível salvar: ${err.message}`);
@@ -137,15 +154,15 @@ export default function TodayScreen() {
     setReasonTask(tasks.find((task) => task.id === id));
   }
 
-  function handleConfirmReason(id, reason) {
+  function handleConfirmReason(id, reason, note) {
     setReasonTask(null);
-    register(id, 'NOT_DONE', reason);
+    register(id, 'NOT_DONE', reason, note);
   }
 
   async function handleUndo(id) {
     if (offline) {
       const original = mockTasks.find((t) => t.id === id);
-      replaceTask({ ...original, status: 'PENDING', reason: null });
+      replaceTask({ ...original, status: 'PENDING', reason: null, note: null });
       return;
     }
     try {
@@ -219,7 +236,7 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { gap: 12, padding: 18, paddingTop: 32 },
+  content: { gap: 12, padding: 18, paddingTop: 12 },
   date: { fontSize: 12, color: colors.muted },
   greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
   hero: {

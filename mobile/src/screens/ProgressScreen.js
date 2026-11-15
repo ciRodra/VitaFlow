@@ -52,7 +52,7 @@ function RateBar({ title, rate, detail, color }) {
   const value = percent(rate);
 
   return (
-    <View style={styles.rate}>
+    <View style={styles.rate} accessible accessibilityLabel={`${title}: ${value}%. ${detail}`}>
       <View style={styles.rateHeader}>
         <Text style={styles.rateTitle}>{title}</Text>
         <Text style={styles.rateValue}>{value}%</Text>
@@ -67,7 +67,11 @@ function RateBar({ title, rate, detail, color }) {
 
 function DayBar({ day }) {
   return (
-    <View style={styles.day}>
+    <View
+      style={styles.day}
+      accessible
+      accessibilityLabel={`${day.label}: ${day.done} feitas, ${day.notDone} não feitas, ${day.noResponse} sem registro, ${day.pending} pendentes`}
+    >
       <View style={styles.segments}>
         {CHART_ITEMS.flatMap((item) =>
           Array.from({ length: day[item.key] }, (_, index) => (
@@ -178,15 +182,15 @@ export default function ProgressScreen({ onOpenHistory }) {
 
       <View style={styles.card}>
         <RateBar
-          title="Quanto você registrou"
+          title="Atividades registradas"
           rate={progress.registrationRate}
-          detail={`${recorded} de ${dueTasks} tarefas tiveram registro`}
+          detail={`Você informou o resultado de ${recorded} das ${dueTasks} atividades que já passaram do horário.`}
           color={colors.lilac}
         />
         <RateBar
-          title="Entre os registros, quanto foi feito"
+          title="Atividades realizadas"
           rate={progress.completionRate}
-          detail={`${progress.done} de ${recorded} registros marcados como feito`}
+          detail={`Entre as ${recorded} registradas, ${progress.done} foram marcadas como realizadas.`}
           color="#5FAF35"
         />
       </View>
@@ -234,7 +238,7 @@ export default function ProgressScreen({ onOpenHistory }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { gap: 12, padding: 18, paddingTop: 32 },
+  content: { gap: 12, padding: 18, paddingTop: 12 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

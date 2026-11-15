@@ -35,8 +35,8 @@ export function getTasks() {
   return request('/tasks');
 }
 
-export function saveRecord(taskId, status, reason) {
-  const body = status === 'NOT_DONE' ? { status, reason } : { status };
+export function saveRecord(taskId, status, reason = null, note = null) {
+  const body = status === 'NOT_DONE' ? { status, reason, note } : { status };
   return request(`/tasks/${taskId}/record`, {
     method: 'PUT',
     body: JSON.stringify(body),

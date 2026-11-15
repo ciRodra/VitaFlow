@@ -74,10 +74,10 @@ VitaFlow/
 
 ## Funcionalidades do protótipo
 
-- **Login de demonstração:** acesso com uma conta fictícia já cadastrada.
+- **Login de demonstração:** acesso com uma conta fictícia já cadastrada. O aplicativo identifica em todas as telas que é uma demonstração, mostra quem está conectado e permite sair. Não há autenticação real nesta versão.
 - **Hoje:** lista as tarefas do dia geradas a partir de uma prescrição simulada, em ordem de horário, com a próxima atividade em destaque.
-- **Registro de tarefas:** cada tarefa pode ser marcada como realizada ou não realizada. Quando não é realizada, o paciente escolhe o motivo. O registro pode ser desfeito.
-- **Orientação profissional em destaque:** a atividade física aparece com o selo de recomendação médica e um conteúdo educativo.
+- **Registro de tarefas:** cada tarefa pode ser marcada como realizada ou não realizada. Quando não é realizada, o paciente escolhe o motivo (incluindo "Prefiro não informar") e pode deixar um comentário. O aplicativo nunca presume o motivo, e o registro pode ser desfeito.
+- **Origem de cada orientação:** cada tarefa mostra se veio de prescrição ou de orientação profissional, com o nome do profissional registrado. A atividade física recomendada aparece com selo e conteúdo educativo.
 - **Histórico:** mostra o que aconteceu com cada tarefa, dia a dia, com filtros de 7 dias, 30 dias e todo o período.
 - **Progresso:** apresenta totais, duas taxas e um gráfico de registros, com visões de dia e de semana.
 - **Persistência:** os registros são salvos em banco de dados e continuam disponíveis ao reabrir o aplicativo.
@@ -86,7 +86,7 @@ VitaFlow/
 ### Regras que orientam o aplicativo
 
 - **Sem registro não é falha.** Se o paciente não informa nada, a tarefa aparece como "Sem registro", e nunca como "Não feito". Uma tarefa só passa a "Sem registro" uma hora depois do horário previsto.
-- **Duas taxas transparentes.** O Progresso mostra "Quanto você registrou" e "Entre os registros, quanto foi feito". As tarefas pendentes ficam fora das duas contas, e o aplicativo não apresenta uma taxa única de adesão.
+- **Duas taxas transparentes.** O Progresso mostra "Atividades registradas" (de quantas atividades que já passaram do horário o paciente informou o resultado) e "Atividades realizadas" (entre as registradas, quantas foram feitas), sempre com os números de base. As tarefas pendentes ficam fora das duas contas, e o aplicativo não apresenta uma taxa única de adesão.
 - **O aplicativo não decide nada clínico.** Medicamentos, aferições e exercícios vêm da prescrição simulada. O VitaFlow apenas organiza e registra.
 - **Status com símbolo e texto.** Nenhuma informação depende apenas de cor.
 

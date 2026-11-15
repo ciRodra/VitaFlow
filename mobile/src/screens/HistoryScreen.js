@@ -14,7 +14,10 @@ const FILTERS = [
 ];
 
 function detailFor(task) {
-  if (task.status === 'NOT_DONE') return `Motivo: ${REASON_LABELS[task.reason] || 'não informado'}`;
+  if (task.status === 'NOT_DONE') {
+    const reason = `Motivo: ${REASON_LABELS[task.reason] || 'não informado'}`;
+    return task.note ? `${reason} · “${task.note}”` : reason;
+  }
   if (task.status === 'DONE') return 'Registrado como feito';
   if (task.status === 'NO_RESPONSE') return 'Nenhum registro';
   return 'Aguardando o horário';
@@ -94,7 +97,12 @@ export default function HistoryScreen() {
           {day.tasks.map((task) => {
             const style = statusStyles[task.status];
             return (
-              <View key={task.id} style={styles.row}>
+              <View
+                key={task.id}
+                style={styles.row}
+                accessible
+                accessibilityLabel={`${task.scheduledTime}, ${task.title}: ${style.label.slice(2)}. ${detailFor(task)}`}
+              >
                 <Text style={styles.time}>{task.scheduledTime}</Text>
                 <View style={styles.rowBody}>
                   <Text style={styles.taskTitle}>{task.title}</Text>
@@ -119,7 +127,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { gap: 12, padding: 18, paddingTop: 32 },
+  content: { gap: 12, padding: 18, paddingTop: 12 },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },
   subtitle: { fontSize: 12.5, color: colors.muted },
   filters: { flexDirection: 'row', gap: 8 },
