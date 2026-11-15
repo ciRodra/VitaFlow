@@ -79,7 +79,7 @@ VitaFlow/
 - **Registro de tarefas:** cada tarefa pode ser marcada como realizada ou não realizada. Quando não é realizada, o paciente escolhe o motivo (incluindo "Prefiro não informar") e pode deixar um comentário. O aplicativo nunca presume o motivo, e o registro pode ser desfeito.
 - **Origem de cada orientação:** cada tarefa mostra se veio de prescrição ou de orientação profissional, com o nome do profissional registrado. A atividade física recomendada aparece com selo e conteúdo educativo.
 - **Histórico:** mostra o que aconteceu com cada tarefa, dia a dia, com filtros de 7 dias, 30 dias e todo o período.
-- **Progresso:** apresenta totais, duas taxas e um gráfico de registros, com visões de dia e de semana.
+- **Progresso:** um resumo simples do dia ou da semana, com os totais de cada situação. A tela **Estatísticas**, aberta a partir dele, mostra as duas taxas e um gráfico de registros por dia.
 - **Persistência:** os registros são salvos em banco de dados e continuam disponíveis ao reabrir o aplicativo.
 - **Recursos planejados já posicionados na interface:** a visão de mês e o relatório de medicações (no Progresso) e os atalhos de tarefas ativas e calendário (na tela Hoje) aparecem onde serão usados. Ao tocar neles, o aplicativo informa que o recurso estará disponível em breve. Eles ainda não funcionam e estão listados em "Próximos passos".
 
@@ -142,9 +142,13 @@ Para testar no celular com o Expo Go, troque `localhost` pelo IP do computador e
 
 ## Telas
 
-| Login | Hoje | Motivo | Histórico | Progresso |
-|---|---|---|---|---|
-| ![Login](docs/screenshots/01-login.png) | ![Hoje](docs/screenshots/02-hoje.png) | ![Motivo](docs/screenshots/03-motivo.png) | ![Histórico](docs/screenshots/04-historico.png) | ![Progresso](docs/screenshots/05-progresso.png) |
+| Login | Hoje | Motivo de não realização |
+|---|---|---|
+| <img src="docs/screenshots/01-login.png" alt="Tela de login de demonstração" width="240"> | <img src="docs/screenshots/02-hoje.png" alt="Tela Hoje com as tarefas do dia" width="240"> | <img src="docs/screenshots/03-motivo.png" alt="Escolha do motivo ao marcar Não realizei" width="240"> |
+
+| Histórico | Progresso | Estatísticas |
+|---|---|---|
+| <img src="docs/screenshots/04-historico.png" alt="Histórico dia a dia" width="240"> | <img src="docs/screenshots/05-progresso.png" alt="Resumo do progresso da semana" width="240"> | <img src="docs/screenshots/06-estatisticas.png" alt="Percentuais e registros por dia" width="240"> |
 
 ## Identidade visual
 
