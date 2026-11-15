@@ -12,10 +12,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', service: 'vitaflow-api' }));
 
 app.use('/auth', authRoutes);
-app.use('/tasks', tasksRoutes);     // Lucas adiciona aqui o PUT/DELETE /tasks/:id/record (2C)
+app.use('/tasks', tasksRoutes); // GET /tasks, PUT e DELETE /tasks/:id/record
 app.use('/history', historyRoutes);
 app.use('/progress', progressRoutes);
 

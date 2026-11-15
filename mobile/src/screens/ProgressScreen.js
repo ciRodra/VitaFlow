@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { mockProgress, mockProgressDay } from '../mocks/progress';
+import { getProgress } from '../services/api';
+import { weekdayShort } from '../utils/dates';
+import OfflineNotice from '../components/OfflineNotice';
 import { colors, statusStyles } from '../theme/colors';
 import VitaIcon from '../components/VitaIcon';
 import ComingSoonModal from '../components/ComingSoonModal';
@@ -14,11 +17,13 @@ const CHART_ITEMS = [
 
 const PERIODS = {
   Dia: {
+    days: 1,
     data: mockProgressDay,
     subtitle: 'Hoje',
     chartTitle: 'Registros de hoje',
   },
   Semana: {
+    days: 7,
     data: mockProgress,
     subtitle: 'Últimos 7 dias',
     chartTitle: 'Registros por dia (4 tarefas/dia)',
@@ -27,6 +32,17 @@ const PERIODS = {
 
 // "Mês" aparece como opção, mas ainda abre o aviso "Em breve".
 const PERIOD_BUTTONS = ['Dia', 'Semana', 'Mês'];
+
+// A API devolve só a data de cada dia; o rótulo do gráfico é montado aqui.
+function withLabels(progress, period) {
+  return {
+    ...progress,
+    dailyBreakdown: progress.dailyBreakdown.map((day) => ({
+      ...day,
+      label: day.label || (period === 'Dia' ? 'Hoje' : weekdayShort(day.date)),
+    })),
+  };
+}
 
 function percent(rate) {
   return Math.round(rate * 100);
@@ -70,7 +86,33 @@ function DayBar({ day }) {
 export default function ProgressScreen({ onOpenHistory }) {
   const [period, setPeriod] = useState('Semana');
   const [feature, setFeature] = useState(null);
-  const { data: progress, subtitle, chartTitle } = PERIODS[period];
+  const [apiData, setApiData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    getProgress(PERIODS[period].days)
+      .then((data) => {
+        setApiData((current) => ({ ...current, [period]: withLabels(data, period) }));
+        setOffline(false);
+      })
+      .catch(() => setOffline(true))
+      .finally(() => setLoading(false));
+  }, [period]);
+
+  const { subtitle, chartTitle } = PERIODS[period];
+  // Sem API, usa os dados de demonstração do período.
+  const progress = apiData[period] || (offline ? PERIODS[period].data : null);
+
+  if (!progress) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={colors.text} />
+      </View>
+    );
+  }
+
   const recorded = progress.done + progress.notDone;
   const dueTasks = recorded + progress.noResponse;
   const kpis = [
@@ -110,6 +152,9 @@ export default function ProgressScreen({ onOpenHistory }) {
           );
         })}
       </View>
+
+      {offline && <OfflineNotice />}
+      {loading && <ActivityIndicator color={colors.text} />}
 
       <Text style={styles.small}>
         {subtitle} · {progress.totalTasks} tarefas previstas
@@ -188,6 +233,7 @@ export default function ProgressScreen({ onOpenHistory }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { gap: 12, padding: 18, paddingTop: 32 },
   header: {
     flexDirection: 'row',

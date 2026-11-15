@@ -5,7 +5,8 @@ import { colors } from './src/theme/colors';
 import LoginScreen from './src/screens/LoginScreen';
 import TodayScreen from './src/screens/TodayScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
-
+import HistoryScreen from './src/screens/HistoryScreen';
+import { login } from './src/services/api';
 
 const TABS = ['Hoje', 'Histórico', 'Progresso'];
 
@@ -13,8 +14,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('Hoje');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  async function handleLogin() {
+    try {
+      await login();
+    } catch {
+      // Sem API, o app segue com os dados de demonstração.
+    }
+    setIsLoggedIn(true);
+  }
+
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -22,14 +32,10 @@ export default function App() {
       <StatusBar style="dark" />
 
       {activeTab === 'Hoje' && <TodayScreen />}
-{activeTab === 'Progresso' && (
-  <ProgressScreen onOpenHistory={() => setActiveTab('Histórico')} />
-)}
-{activeTab === 'Histórico' && (
-  <View style={styles.content}>
-    <Text style={styles.title}>Histórico</Text>
-  </View>
-)}
+      {activeTab === 'Histórico' && <HistoryScreen />}
+      {activeTab === 'Progresso' && (
+        <ProgressScreen onOpenHistory={() => setActiveTab('Histórico')} />
+      )}
 
       <View style={styles.tabBar}>
         {TABS.map((tab) => {
@@ -56,8 +62,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, padding: 18, paddingTop: 48 },
-  title: { fontSize: 24, fontWeight: '700', color: colors.text },
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
