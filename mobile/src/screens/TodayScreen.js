@@ -1,16 +1,13 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { mockTasks } from '../mocks/tasks';
+import { getTasks, saveRecord, undoRecord } from '../services/api';
+import { REASON_LABELS } from '../constants/reasons';
+import { longDate } from '../utils/dates';
+import ReasonModal from '../components/ReasonModal';
+import OfflineNotice from '../components/OfflineNotice';
 import { colors, statusStyles } from '../theme/colors';
 import FeatureShortcuts from '../components/FeatureShortcuts';
-
-const REASONS = {
-  FORGOT: 'Esqueci',
-  NO_MEDICATION: 'Não consegui obter o medicamento',
-  DID_NOT_UNDERSTAND: 'Não entendi a orientação',
-  CHOSE_NOT_TO: 'Preferi não realizar',
-  OTHER: 'Outro motivo',
-};
 
 function getSummary(tasks) {
   const count = (status) => tasks.filter((task) => task.status === status).length;
@@ -24,10 +21,11 @@ function getSummary(tasks) {
   return items.filter(([status]) => count(status) > 0);
 }
 
-function TaskCard({ task, onDone, onNotDone }) {
+function TaskCard({ task, onDone, onNotDone, onUndo }) {
   const style = statusStyles[task.status];
   const canRegister = task.status === 'PENDING' || task.status === 'NO_RESPONSE';
   const isHabit = task.type === 'HABIT';
+  const showSeal = isHabit && task.origin === 'PROFESSIONAL' && !!task.prescribedBy;
 
   return (
     <View style={[styles.card, isHabit && styles.habitCard]}>
@@ -36,26 +34,37 @@ function TaskCard({ task, onDone, onNotDone }) {
         {task.scheduledTime} · {task.dosageOrRule}
       </Text>
 
-      <View style={[styles.statusPill, { backgroundColor: style.bg }]}>
+      <View
+        style={[styles.statusPill, { backgroundColor: style.bg }]}
+        accessible
+        accessibilityLabel={`Situação: ${style.label.slice(2)}`}
+      >
         <Text style={[styles.statusText, { color: style.fg }]}>{style.label}</Text>
       </View>
 
       {task.reason && (
-        <Text style={styles.taskInfo}>Motivo: {REASONS[task.reason]}</Text>
+        <Text style={styles.taskInfo}>Motivo: {REASON_LABELS[task.reason]}</Text>
+      )}
+      {task.note && <Text style={styles.taskInfo}>Comentário: {task.note}</Text>}
+
+      {/* A origem vem dos dados da tarefa; nada é atribuído a um profissional sem registro. */}
+      {showSeal ? (
+        <View style={styles.doctorSeal}>
+          <Text style={styles.doctorText}>✚ Recomendado por {task.prescribedBy}</Text>
+        </View>
+      ) : (
+        !!task.prescribedBy && (
+          <Text style={styles.taskInfo}>
+            {task.origin === 'PRESCRIPTION' ? 'Prescrição' : 'Orientação'}: {task.prescribedBy}
+          </Text>
+        )
       )}
 
-      {isHabit && (
-        <>
-          <View style={styles.doctorSeal}>
-            <Text style={styles.doctorText}>
-              ✚ Recomendado pelo médico: Dra. Helena Costa
-            </Text>
-          </View>
-          <View style={styles.learnMore}>
-            <Text style={styles.learnTitle}>Saiba mais (educativo)</Text>
-            <Text style={styles.learnText}>{task.educationalNote}</Text>
-          </View>
-        </>
+      {!!task.educationalNote && (
+        <View style={styles.learnMore}>
+          <Text style={styles.learnTitle}>Saiba mais (educativo)</Text>
+          <Text style={styles.learnText}>{task.educationalNote}</Text>
+        </View>
       )}
 
       {canRegister && (
@@ -63,6 +72,7 @@ function TaskCard({ task, onDone, onNotDone }) {
           <Pressable
             onPress={() => onDone(task.id)}
             accessibilityRole="button"
+            accessibilityLabel={`Realizei: ${task.title}`}
             style={[styles.button, styles.primaryButton]}
           >
             <Text style={styles.primaryText}>✓ Realizei</Text>
@@ -70,41 +80,102 @@ function TaskCard({ task, onDone, onNotDone }) {
           <Pressable
             onPress={() => onNotDone(task.id)}
             accessibilityRole="button"
+            accessibilityLabel={`Não realizei: ${task.title}`}
             style={[styles.button, styles.outlineButton]}
           >
             <Text style={styles.outlineText}>✕ Não realizei</Text>
           </Pressable>
         </View>
       )}
+
+      {!canRegister && (
+        <Pressable
+          onPress={() => onUndo(task.id)}
+          accessibilityRole="button"
+          style={styles.undoButton}
+        >
+          <Text style={styles.undoText}>Desfazer registro</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
 
 export default function TodayScreen() {
-  const [tasks, setTasks] = useState(mockTasks);
-  const summary = getSummary(tasks);
-  const nextTask = tasks.find((task) => task.status === 'PENDING');
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [reasonTask, setReasonTask] = useState(null);
 
-  function updateTask(id, changes) {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === id ? { ...task, ...changes } : task
-      )
-    );
+  const summary = getSummary(tasks);
+  // Próxima = a pendente de horário mais cedo (não a primeira da lista).
+  const nextTask = tasks
+    .filter((task) => task.status === 'PENDING')
+    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime))[0];
+
+  useEffect(() => {
+    getTasks()
+      .then((data) => {
+        setTasks(data);
+        setOffline(false);
+      })
+      .catch(() => {
+        // Sem API: mostra a demonstração local para o app continuar utilizável.
+        setTasks(mockTasks);
+        setOffline(true);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function replaceTask(updated) {
+    setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+  }
+
+  async function register(id, status, reason = null, note = null) {
+    if (offline) {
+      const task = tasks.find((t) => t.id === id);
+      replaceTask({ ...task, status, reason, note });
+      return;
+    }
+    try {
+      replaceTask(await saveRecord(id, status, reason, note));
+      setMessage(status === 'DONE' ? 'Registro salvo: feito.' : 'Registro salvo: não feito.');
+    } catch (err) {
+      setMessage(`Não foi possível salvar: ${err.message}`);
+    }
   }
 
   function handleDone(id) {
-    updateTask(id, { status: 'DONE', reason: null });
+    register(id, 'DONE');
   }
 
-  // Temporário: será substituído pelo modal de motivo do Lucas.
   function handleNotDone(id) {
-    updateTask(id, { status: 'NOT_DONE', reason: 'FORGOT' });
+    setReasonTask(tasks.find((task) => task.id === id));
+  }
+
+  function handleConfirmReason(id, reason, note) {
+    setReasonTask(null);
+    register(id, 'NOT_DONE', reason, note);
+  }
+
+  async function handleUndo(id) {
+    if (offline) {
+      const original = mockTasks.find((t) => t.id === id);
+      replaceTask({ ...original, status: 'PENDING', reason: null, note: null });
+      return;
+    }
+    try {
+      replaceTask(await undoRecord(id));
+      setMessage('Registro desfeito.');
+    } catch (err) {
+      setMessage(`Não foi possível desfazer: ${err.message}`);
+    }
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.date}>Quarta-feira, 4 de novembro</Text>
+      <Text style={styles.date}>{longDate()}</Text>
       <Text style={styles.greeting}>Olá, Ana</Text>
 
       <View style={styles.hero}>
@@ -136,7 +207,12 @@ export default function TodayScreen() {
         </View>
       </View>
 
+      {offline && <OfflineNotice />}
+      {message && <Text style={styles.message}>{message}</Text>}
+
       <FeatureShortcuts />
+
+      {loading && <ActivityIndicator color={colors.text} />}
 
       {tasks.map((task) => (
         <TaskCard
@@ -144,15 +220,23 @@ export default function TodayScreen() {
           task={task}
           onDone={handleDone}
           onNotDone={handleNotDone}
+          onUndo={handleUndo}
         />
       ))}
+
+      <ReasonModal
+        visible={!!reasonTask}
+        task={reasonTask}
+        onClose={() => setReasonTask(null)}
+        onConfirm={handleConfirmReason}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { gap: 12, padding: 18, paddingTop: 32 },
+  content: { gap: 12, padding: 18, paddingTop: 12 },
   date: { fontSize: 12, color: colors.muted },
   greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
   hero: {
@@ -215,6 +299,9 @@ const styles = StyleSheet.create({
     borderColor: colors.text,
     backgroundColor: colors.surface,
   },
+  undoButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  undoText: { fontSize: 12.5, fontWeight: '600', color: colors.text, textDecorationLine: 'underline' },
+  message: { fontSize: 12, fontWeight: '600', color: colors.text },
   primaryText: { fontSize: 13, fontWeight: '700', color: colors.text },
   outlineText: { fontSize: 13, fontWeight: '600', color: colors.text },
 });

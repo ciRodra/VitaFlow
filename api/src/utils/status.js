@@ -1,6 +1,12 @@
-// PLACEHOLDER temporário seguindo a tabela da etapa 2A.
-// O Lucas é o dono deste arquivo: ao juntar na main, ficar com a versão DELE.
-const REASONS = ['FORGOT', 'NO_MEDICATION', 'DID_NOT_UNDERSTAND', 'CHOSE_NOT_TO', 'OTHER']; // contrato
+// Regra de status (Sem registro só 1 hora depois do horário previsto) e motivos aceitos.
+const REASONS = [
+  'FORGOT',
+  'NO_MEDICATION',
+  'DID_NOT_UNDERSTAND',
+  'CHOSE_NOT_TO',
+  'OTHER',
+  'PREFER_NOT_TO_SAY',
+];
 
 function calcularStatus(task, record, agora = new Date()) {
   if (record) return record.status; // DONE | NOT_DONE

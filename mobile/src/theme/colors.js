@@ -7,6 +7,7 @@ export const colors = {
   background: '#F5FAF7',
   surface: '#FFFFFF',
   line: '#DCE7E1',
+  lineStrong: '#6F8F81', // bordas de campos e controles (contraste 3,5:1 sobre branco)
   text: '#064B38',
   muted: '#4F6B61',
 };
