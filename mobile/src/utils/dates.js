@@ -28,3 +28,14 @@ export function shortDay(value) {
 export function weekdayShort(value) {
   return WEEKDAYS_SHORT[parseDate(value).getDay()];
 }
+
+// "9 a 15 de novembro" ou "28 de outubro a 3 de novembro"; um dia só: "Domingo, 15 de novembro"
+export function rangeLabel(first, last) {
+  const a = parseDate(first);
+  const b = parseDate(last || first);
+  if (a.getTime() === b.getTime()) return longDate(a);
+  if (a.getMonth() === b.getMonth()) {
+    return `${a.getDate()} a ${b.getDate()} de ${MONTHS[b.getMonth()]}`;
+  }
+  return `${a.getDate()} de ${MONTHS[a.getMonth()]} a ${b.getDate()} de ${MONTHS[b.getMonth()]}`;
+}

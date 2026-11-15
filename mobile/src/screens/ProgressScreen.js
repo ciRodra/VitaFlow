@@ -1,311 +1,197 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { mockProgress, mockProgressDay } from '../mocks/progress';
-import { getProgress } from '../services/api';
-import { weekdayShort } from '../utils/dates';
-import OfflineNotice from '../components/OfflineNotice';
 import { colors, statusStyles } from '../theme/colors';
+import useProgress from '../hooks/useProgress';
+import { rangeLabel } from '../utils/dates';
 import VitaIcon from '../components/VitaIcon';
-import ComingSoonModal from '../components/ComingSoonModal';
+import OfflineNotice from '../components/OfflineNotice';
 
-const CHART_ITEMS = [
-  { key: 'done', color: '#1E7A3B', label: '✓ Feito' },
-  { key: 'notDone', color: '#E8846E', label: '✕ Não feito' },
-  { key: 'noResponse', color: '#C9D2CE', label: '— Sem registro' },
-  { key: 'pending', color: colors.lilacLight, label: '◷ Pendente' },
+// Aba Progresso: só o essencial. Percentuais e gráfico ficam na tela Estatísticas.
+const PERIODS = [
+  { key: 'Hoje', days: 1, title: 'Resumo de hoje' },
+  { key: 'Esta semana', days: 7, title: 'Resumo da semana' },
 ];
 
-const PERIODS = {
-  Dia: {
-    days: 1,
-    data: mockProgressDay,
-    subtitle: 'Hoje',
-    chartTitle: 'Registros de hoje',
-  },
-  Semana: {
-    days: 7,
-    data: mockProgress,
-    subtitle: 'Últimos 7 dias',
-    chartTitle: 'Registros por dia (4 tarefas/dia)',
-  },
-};
+const CARDS = [
+  { key: 'done', status: 'DONE', label: 'Feitas', hint: 'Você marcou como realizadas' },
+  { key: 'notDone', status: 'NOT_DONE', label: 'Não feitas', hint: 'Você informou o motivo' },
+  { key: 'noResponse', status: 'NO_RESPONSE', label: 'Sem registro', hint: 'Horário passou sem informação' },
+  { key: 'pending', status: 'PENDING', label: 'Pendentes', hint: 'Ainda dentro do horário' },
+];
 
-// "Mês" aparece como opção, mas ainda abre o aviso "Em breve".
-const PERIOD_BUTTONS = ['Dia', 'Semana', 'Mês'];
-
-// A API devolve só a data de cada dia; o rótulo do gráfico é montado aqui.
-function withLabels(progress, period) {
-  return {
-    ...progress,
-    dailyBreakdown: progress.dailyBreakdown.map((day) => ({
-      ...day,
-      label: day.label || (period === 'Dia' ? 'Hoje' : weekdayShort(day.date)),
-    })),
-  };
+function summarySentence(p) {
+  const recorded = p.done + p.notDone;
+  const due = recorded + p.noResponse;
+  if (due === 0) return 'Ainda não há atividades com o horário vencido neste período.';
+  return `Você registrou ${recorded} das ${due} atividades que já passaram do horário, e ${p.done} ${
+    p.done === 1 ? 'delas foi feita' : 'delas foram feitas'
+  }.`;
 }
 
-function percent(rate) {
-  return Math.round(rate * 100);
-}
-
-function RateBar({ title, rate, detail, color }) {
-  const value = percent(rate);
-
+function LinkCard({ icon, title, text, onPress }) {
   return (
-    <View style={styles.rate} accessible accessibilityLabel={`${title}: ${value}%. ${detail}`}>
-      <View style={styles.rateHeader}>
-        <Text style={styles.rateTitle}>{title}</Text>
-        <Text style={styles.rateValue}>{value}%</Text>
-      </View>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${value}%`, backgroundColor: color }]} />
-      </View>
-      <Text style={styles.small}>{detail}</Text>
-    </View>
-  );
-}
-
-function DayBar({ day }) {
-  return (
-    <View
-      style={styles.day}
-      accessible
-      accessibilityLabel={`${day.label}: ${day.done} feitas, ${day.notDone} não feitas, ${day.noResponse} sem registro, ${day.pending} pendentes`}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${text}`}
+      style={({ pressed }) => [styles.link, pressed && styles.pressed]}
     >
-      <View style={styles.segments}>
-        {CHART_ITEMS.flatMap((item) =>
-          Array.from({ length: day[item.key] }, (_, index) => (
-            <View
-              key={`${item.key}-${index}`}
-              style={[styles.segment, { backgroundColor: item.color }]}
-            />
-          ))
-        )}
+      <VitaIcon name={icon} size={40} />
+      <View style={styles.linkBody}>
+        <Text style={styles.linkTitle}>{title}</Text>
+        <Text style={styles.small}>{text}</Text>
       </View>
-      <Text style={styles.dayLabel}>{day.label}</Text>
-    </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
   );
 }
 
-export default function ProgressScreen({ onOpenHistory }) {
-  const [period, setPeriod] = useState('Semana');
-  const [feature, setFeature] = useState(null);
-  const [apiData, setApiData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [offline, setOffline] = useState(false);
+export default function ProgressScreen({ onOpenHistory, onOpenStats }) {
+  const [periodKey, setPeriodKey] = useState('Esta semana');
+  const period = PERIODS.find((p) => p.key === periodKey);
+  const { data: progress, loading, offline } = useProgress(period.days);
 
-  useEffect(() => {
-    setLoading(true);
-    getProgress(PERIODS[period].days)
-      .then((data) => {
-        setApiData((current) => ({ ...current, [period]: withLabels(data, period) }));
-        setOffline(false);
-      })
-      .catch(() => setOffline(true))
-      .finally(() => setLoading(false));
-  }, [period]);
-
-  const { subtitle, chartTitle } = PERIODS[period];
-  // Sem API, usa os dados de demonstração do período.
-  const progress = apiData[period] || (offline ? PERIODS[period].data : null);
-
-  if (!progress) {
-    return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator color={colors.text} />
-      </View>
-    );
-  }
-
-  const recorded = progress.done + progress.notDone;
-  const dueTasks = recorded + progress.noResponse;
-  const kpis = [
-    { value: progress.done, status: 'DONE' },
-    { value: progress.notDone, status: 'NOT_DONE' },
-    { value: progress.noResponse, status: 'NO_RESPONSE' },
-  ];
+  const days = progress ? progress.dailyBreakdown || [] : [];
+  const range = days.length ? rangeLabel(days[0].date, days[days.length - 1].date) : '';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Progresso</Text>
-        <Pressable
-          onPress={onOpenHistory}
-          accessibilityRole="button"
-          style={styles.historyButton}
-        >
-          <Text style={styles.historyText}>Ver histórico ›</Text>
-        </Pressable>
+      <View>
+        <Text style={styles.title} accessibilityRole="header">Seu progresso</Text>
+        <Text style={styles.subtitle}>Um resumo simples dos seus registros.</Text>
       </View>
 
-      <View style={styles.periods}>
-        {PERIOD_BUTTONS.map((name) => {
-          const isActive = name === period;
+      <View style={styles.segment}>
+        {PERIODS.map((p) => {
+          const isActive = p.key === periodKey;
           return (
             <Pressable
-              key={name}
-              onPress={() => (PERIODS[name] ? setPeriod(name) : setFeature('mes'))}
+              key={p.key}
+              onPress={() => setPeriodKey(p.key)}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
-              style={[styles.periodButton, isActive && styles.periodActive]}
+              style={[styles.segmentItem, isActive && styles.segmentActive]}
             >
-              <Text style={[styles.periodText, isActive && styles.periodTextActive]}>
-                {name}
-              </Text>
+              <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>{p.key}</Text>
             </Pressable>
           );
         })}
       </View>
 
       {offline && <OfflineNotice />}
-      {loading && <ActivityIndicator color={colors.text} />}
 
-      <Text style={styles.small}>
-        {subtitle} · {progress.totalTasks} tarefas previstas
-      </Text>
+      {!progress || loading ? (
+        <ActivityIndicator color={colors.text} style={styles.loader} />
+      ) : (
+        <>
+          <View>
+            <Text style={styles.sectionTitle}>{period.title}</Text>
+            <Text style={styles.small}>
+              {range} · {progress.totalTasks} {progress.totalTasks === 1 ? 'atividade prevista' : 'atividades previstas'}
+            </Text>
+          </View>
 
-      <View style={styles.kpis}>
-        {kpis.map((kpi) => {
-          const style = statusStyles[kpi.status];
-          return (
-            <View key={kpi.status} style={[styles.kpi, { backgroundColor: style.bg }]}>
-              <Text style={[styles.kpiValue, { color: style.fg }]}>{kpi.value}</Text>
-              <Text style={[styles.kpiLabel, { color: style.fg }]}>{style.label}</Text>
-            </View>
-          );
-        })}
-      </View>
+          <View style={styles.grid}>
+            {CARDS.map((card) => {
+              const style = statusStyles[card.status];
+              const value = progress[card.key];
+              return (
+                <View
+                  key={card.key}
+                  style={[styles.kpi, { backgroundColor: style.bg }]}
+                  accessible
+                  accessibilityLabel={`${value} ${card.label}. ${card.hint}`}
+                >
+                  <Text style={[styles.kpiValue, { color: style.fg }]}>{value}</Text>
+                  <Text style={[styles.kpiLabel, { color: style.fg }]}>
+                    {style.label.slice(0, 1)} {card.label}
+                  </Text>
+                  <Text style={[styles.kpiHint, { color: style.fg }]}>{card.hint}</Text>
+                </View>
+              );
+            })}
+          </View>
 
-      <Text style={styles.small}>
-        {progress.pending} tarefas pendentes hoje, fora das duas taxas.
-      </Text>
+          <View style={styles.sentence}>
+            <Text style={styles.sentenceText}>{summarySentence(progress)}</Text>
+          </View>
+        </>
+      )}
 
-      <View style={styles.card}>
-        <RateBar
-          title="Atividades registradas"
-          rate={progress.registrationRate}
-          detail={`Você informou o resultado de ${recorded} das ${dueTasks} atividades que já passaram do horário.`}
-          color={colors.lilac}
-        />
-        <RateBar
-          title="Atividades realizadas"
-          rate={progress.completionRate}
-          detail={`Entre as ${recorded} registradas, ${progress.done} foram marcadas como realizadas.`}
-          color="#5FAF35"
-        />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.chartTitle}>{chartTitle}</Text>
-        <View style={styles.chart}>
-          {progress.dailyBreakdown.map((day) => (
-            <DayBar key={day.date} day={day} />
-          ))}
-        </View>
-        <View style={styles.legend}>
-          {CHART_ITEMS.map((item) => (
-            <View key={item.key} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <Pressable
-        onPress={() => setFeature('relatorio')}
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.card, styles.reportCard, pressed && styles.pressed]}
-      >
-        <VitaIcon name="relatorio" size={40} />
-        <View style={styles.reportBody}>
-          <Text style={styles.chartTitle}>Relatório de medicações</Text>
-          <Text style={styles.small}>Todas as datas e horários dos seus medicamentos</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
+      <LinkCard
+        icon="mes"
+        title="Ver estatísticas"
+        text="Percentuais e gráfico dia a dia"
+        onPress={onOpenStats}
+      />
+      <LinkCard
+        icon="tarefas"
+        title="Ver histórico"
+        text="O que aconteceu com cada atividade"
+        onPress={onOpenHistory}
+      />
 
       <Text style={styles.notice}>
         Baseado apenas nos seus registros.{'\n'}
         Não representa avaliação clínica nem adesão comprovada.
       </Text>
-
-      <ComingSoonModal feature={feature} onClose={() => setFeature(null)} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { gap: 12, padding: 18, paddingTop: 12 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
+  content: { gap: 14, padding: 18, paddingTop: 12 },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },
-  historyButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
+  subtitle: { fontSize: 13, color: colors.muted },
+  segment: {
+    flexDirection: 'row',
+    padding: 4,
     borderWidth: 1,
     borderRadius: 999,
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  historyText: { fontSize: 12.5, fontWeight: '600', color: colors.text },
-  periods: { flexDirection: 'row', gap: 8 },
-  periodButton: {
+  segmentItem: {
+    flex: 1,
     minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    borderWidth: 1,
     borderRadius: 999,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
   },
-  periodActive: { borderColor: colors.text, backgroundColor: colors.text },
-  periodText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  periodTextActive: { color: colors.surface },
+  segmentActive: { backgroundColor: colors.text },
+  segmentText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  segmentTextActive: { color: colors.surface },
+  loader: { marginVertical: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   small: { fontSize: 12, color: colors.muted },
-  kpis: { flexDirection: 'row', gap: 8 },
-  kpi: { flex: 1, padding: 12, borderRadius: 16 },
-  kpiValue: { fontSize: 25, fontWeight: '700' },
-  kpiLabel: { fontSize: 11, fontWeight: '700' },
-  card: {
-    gap: 14,
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  kpi: { flexGrow: 1, flexBasis: '45%', gap: 2, padding: 14, borderRadius: 16 },
+  kpiValue: { fontSize: 28, fontWeight: '700' },
+  kpiLabel: { fontSize: 12, fontWeight: '700' },
+  kpiHint: { fontSize: 11, opacity: 0.85 },
+  sentence: {
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 16,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  sentenceText: { fontSize: 13.5, lineHeight: 20, color: colors.text },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 64,
     padding: 14,
     borderWidth: 1,
     borderRadius: 18,
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  rate: { gap: 5 },
-  rateHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  rateTitle: { flex: 1, fontSize: 13.5, fontWeight: '600', color: colors.text },
-  rateValue: { fontSize: 14, fontWeight: '700', color: colors.text },
-  track: {
-    height: 10,
-    overflow: 'hidden',
-    borderRadius: 5,
-    backgroundColor: statusStyles.NO_RESPONSE.bg,
-  },
-  fill: { height: 10, borderRadius: 5 },
-  chartTitle: { fontSize: 13.5, fontWeight: '600', color: colors.text },
-  chart: { flexDirection: 'row', justifyContent: 'space-around' },
-  day: { alignItems: 'center', gap: 5 },
-  segments: { width: 24, flexDirection: 'column-reverse', gap: 2 },
-  segment: { height: 16, borderRadius: 4 },
-  dayLabel: { fontSize: 10.5, fontWeight: '600', color: colors.text },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendColor: { width: 10, height: 10, borderRadius: 3 },
-  legendText: { fontSize: 11, color: colors.text },
-  reportCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  reportBody: { flex: 1, gap: 2 },
-  chevron: { fontSize: 22, color: colors.muted },
+  linkBody: { flex: 1, gap: 2 },
+  linkTitle: { fontSize: 14.5, fontWeight: '700', color: colors.text },
+  chevron: { fontSize: 24, color: colors.muted },
   pressed: { opacity: 0.7 },
   notice: { fontSize: 11.5, lineHeight: 17, textAlign: 'center', color: colors.muted },
 });
