@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
 import LoginScreen from './src/screens/LoginScreen';
 import TodayScreen from './src/screens/TodayScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import StatisticsScreen from './src/screens/StatisticsScreen';
 import { login } from './src/services/api';
 
 const TABS = ['Hoje', 'Histórico', 'Progresso'];
@@ -13,6 +14,22 @@ const TABS = ['Hoje', 'Histórico', 'Progresso'];
 export default function App() {
   const [activeTab, setActiveTab] = useState('Hoje');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+
+  // No Android, o botão físico de voltar fecha a tela de Estatísticas.
+  useEffect(() => {
+    if (!statsOpen) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setStatsOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [statsOpen]);
+
+  function openTab(tab) {
+    setStatsOpen(false);
+    setActiveTab(tab);
+  }
 
   async function handleLogin() {
     try {
@@ -25,6 +42,7 @@ export default function App() {
 
   function handleLogout() {
     setIsLoggedIn(false);
+    setStatsOpen(false);
     setActiveTab('Hoje');
   }
 
@@ -57,8 +75,14 @@ export default function App() {
 
       {activeTab === 'Hoje' && <TodayScreen />}
       {activeTab === 'Histórico' && <HistoryScreen />}
-      {activeTab === 'Progresso' && (
-        <ProgressScreen onOpenHistory={() => setActiveTab('Histórico')} />
+      {activeTab === 'Progresso' && !statsOpen && (
+        <ProgressScreen
+          onOpenHistory={() => openTab('Histórico')}
+          onOpenStats={() => setStatsOpen(true)}
+        />
+      )}
+      {activeTab === 'Progresso' && statsOpen && (
+        <StatisticsScreen onBack={() => setStatsOpen(false)} />
       )}
 
       <View style={styles.tabBar}>
@@ -68,7 +92,7 @@ export default function App() {
           return (
             <Pressable
               key={tab}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => openTab(tab)}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               style={[styles.tab, isActive && styles.activeTab]}
