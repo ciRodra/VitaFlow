@@ -150,6 +150,12 @@ Para testar no celular com o Expo Go, troque `localhost` pelo IP do computador e
 |---|---|---|
 | <img src="docs/screenshots/04-historico.png" alt="Histórico dia a dia" width="240"> | <img src="docs/screenshots/05-progresso.png" alt="Resumo do progresso da semana" width="240"> | <img src="docs/screenshots/06-estatisticas.png" alt="Percentuais e registros por dia" width="240"> |
 
+## Vídeo de demonstração
+
+[![Vídeo de demonstração do VitaFlow](https://img.youtube.com/vi/tt1TxPaDVvM/hqdefault.jpg)](https://youtu.be/tt1TxPaDVvM)
+
+Fluxo completo: login de demonstração, registro de atividades, escolha do motivo, Histórico, Progresso e Estatísticas.
+
 ## Identidade visual
 
 O nome **VitaFlow** une "vita" (vida, vitalidade e saúde) e "flow" (fluxo, movimento e continuidade). A identidade busca transmitir saúde, organização, simplicidade, confiança, acessibilidade e humanização, sem a complexidade visual de um sistema hospitalar tradicional.
